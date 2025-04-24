@@ -107,18 +107,54 @@ const ResetButton = styled.button`
   }
 `;
 
+const SavedSection = styled.div`
+  padding: 1rem;
+  border-bottom: 1px solid ${(props) => props.theme.border};
+`;
+
+const SectionTitle = styled.h2`
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+`;
+
+const SavedList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 0;
+`;
+
+const SavedItem = styled.li`
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover {
+    background: ${(props) => props.theme.accent};
+  }
+`;
+
+const EmptyMessage = styled.p`
+  padding: 0.5rem;
+  text-align: center;
+`;
+
+const FilterSection = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+`;
+
 interface SidebarProps {
-  setCurrentSong: (song: any) => void;
+  setCurrentSong: (song: any | null) => void;
   onFiltersChange: (filters: Filters) => void;
+  savedSongs: any[];
 }
 
 interface Filters {
   search: string;
-  decade: string | null;
-  genre: string | null;
-  subgenre: string | null;
-  country: string | null;
-  language: string | null;
+  decade: string[];
+  genre: string[];
+  subgenre: string[];
+  language: string[];
 }
 
 interface FilterOptions {
@@ -129,17 +165,16 @@ interface FilterOptions {
   languages: string[];
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ setCurrentSong, onFiltersChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ setCurrentSong, onFiltersChange, savedSongs }) => {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<Filters>({
     search: '',
-    decade: null,
-    genre: null,
-    subgenre: null,
-    country: null,
-    language: null
+    decade: [],
+    genre: [],
+    subgenre: [],
+    language: [],
   });
-  
+
   const [options, setOptions] = useState<FilterOptions>({
     decades: [],
     genres: [],
@@ -148,7 +183,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ setCurrentSong, onFiltersChang
     languages: []
   });
 
-  const [savedSongs, setSavedSongs] = useState<any[]>([]);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   const toggleSection = useCallback((section: string) => {
@@ -167,7 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ setCurrentSong, onFiltersChang
           .from('songs')
           .select('*')
           .in('id', savedIds);
-        setSavedSongs(data || []);
+        // setSavedSongs(data || []);
       };
       fetchSavedSongs();
     }
@@ -210,153 +244,146 @@ export const Sidebar: React.FC<SidebarProps> = ({ setCurrentSong, onFiltersChang
   }, []);
 
   // Update filters and notify parent
-  const updateFilters = useCallback((key: keyof Filters, value: string | null) => {
-    const newFilters = { ...filters, [key]: value };
-    if (key === 'genre' && value === null) {
-      newFilters.subgenre = null;
+  const handleFilterChange = (filterType: keyof Filters, value: string) => {
+    const newFilters = { ...filters };
+    if (filterType === 'search') {
+      newFilters.search = value;
+    } else {
+      const filterArray = newFilters[filterType] as string[];
+      if (filterArray.includes(value)) {
+        newFilters[filterType] = filterArray.filter(item => item !== value);
+      } else {
+        newFilters[filterType] = [...filterArray, value];
+      }
     }
+    setFilters(newFilters);
+    onFiltersChange(newFilters);
+  };
+
+  const handleSearch = useCallback((value: string) => {
+    setSearch(value);
+    const newFilters = { ...filters, search: value };
     setFilters(newFilters);
     onFiltersChange(newFilters);
   }, [filters, onFiltersChange]);
 
-  const handleSearch = useCallback((value: string) => {
-    setSearch(value);
-    updateFilters('search', value || null);
-  }, [updateFilters]);
-
   const resetFilters = useCallback(() => {
-    setSearch('');
-    setFilters({
+    const newFilters = {
       search: '',
-      decade: null,
-      genre: null,
-      subgenre: null,
-      country: null,
-      language: null
-    });
-    onFiltersChange({
-      search: '',
-      decade: null,
-      genre: null,
-      subgenre: null,
-      country: null,
-      language: null
-    });
+      decade: [],
+      genre: [],
+      subgenre: [],
+      mood: [],
+      language: [],
+    };
+    setFilters(newFilters);
+    onFiltersChange(newFilters);
   }, [onFiltersChange]);
 
   return (
     <SidebarContainer>
-      <TopSection>
-        <SearchInput
-          type="text"
-          placeholder="Search..."
-          value={search}
-          onChange={e => handleSearch(e.target.value)}
-        />
-        <ResetButton onClick={resetFilters}>Reset Filters</ResetButton>
-      </TopSection>
-      <ScrollableSection>
-        <MenuSection>
-          <MenuTitle onClick={() => toggleSection('decade')}>
-            Decade
-            <span style={{ transform: `rotate(${openSections['decade'] ? 180 : 0}deg)`, transition: 'transform 0.3s ease' }}>▼</span>
-          </MenuTitle>
-          <MenuItems isOpen={openSections['decade']}>
-            {options.decades.map(decade => (
-              <MenuItem 
-                key={decade}
-                active={filters.decade === decade}
-                onClick={() => updateFilters('decade', filters.decade === decade ? null : decade)}
-              >
-                {decade}
-              </MenuItem>
-            ))}
-          </MenuItems>
-        </MenuSection>
-        <MenuSection>
-          <MenuTitle onClick={() => toggleSection('genre')}>
-            Genre
-            <span style={{ transform: `rotate(${openSections['genre'] ? 180 : 0}deg)`, transition: 'transform 0.3s ease' }}>▼</span>
-          </MenuTitle>
-          <MenuItems isOpen={openSections['genre']}>
-            {options.genres.map(genre => (
-              <React.Fragment key={genre}>
-                <MenuItem 
-                  active={filters.genre === genre}
-                  onClick={() => updateFilters('genre', filters.genre === genre ? null : genre)}
+      <SavedSection>
+        <SectionTitle>Saved Songs ({savedSongs.length})</SectionTitle>
+        <SavedList>
+          {savedSongs.map((song) => (
+            <SavedItem key={song.id} onClick={() => setCurrentSong(song)}>
+              {song.title}
+            </SavedItem>
+          ))}
+          {savedSongs.length === 0 && (
+            <EmptyMessage>No saved songs yet</EmptyMessage>
+          )}
+        </SavedList>
+      </SavedSection>
+      <FilterSection>
+        <TopSection>
+          <SearchInput
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+          />
+          <ResetButton onClick={resetFilters}>Reset Filters</ResetButton>
+        </TopSection>
+        <ScrollableSection>
+          <MenuSection>
+            <MenuTitle onClick={() => toggleSection('decade')}>
+              Decade
+              <span style={{ transform: `rotate(${openSections['decade'] ? 180 : 0}deg)`, transition: 'transform 0.3s ease' }}>▼</span>
+            </MenuTitle>
+            <MenuItems isOpen={openSections['decade']}>
+              {options.decades.map(decade => (
+                <MenuItem
+                  key={decade}
+                  active={filters.decade.includes(decade)}
+                  onClick={() => handleFilterChange('decade', decade)}
+                >
+                  {decade}s
+                </MenuItem>
+              ))}
+            </MenuItems>
+          </MenuSection>
+
+          <MenuSection>
+            <MenuTitle onClick={() => toggleSection('genre')}>
+              Genre
+              <span style={{ transform: `rotate(${openSections['genre'] ? 180 : 0}deg)`, transition: 'transform 0.3s ease' }}>▼</span>
+            </MenuTitle>
+            <MenuItems isOpen={openSections['genre']}>
+              {options.genres.map(genre => (
+                <MenuItem
+                  key={genre}
+                  active={filters.genre.includes(genre)}
+                  onClick={() => handleFilterChange('genre', genre)}
                 >
                   {genre}
                 </MenuItem>
-                {filters.genre === genre && options.subgenres[genre]?.map(subgenre => (
-                  <MenuItem 
-                    key={subgenre}
-                    active={filters.subgenre === subgenre}
-                    onClick={() => updateFilters('subgenre', filters.subgenre === subgenre ? null : subgenre)}
-                    style={{ marginLeft: '1rem' }}
-                  >
-                    {subgenre}
-                  </MenuItem>
-                ))}
-              </React.Fragment>
-            ))}
-          </MenuItems>
-        </MenuSection>
-        <MenuSection>
-          <MenuTitle onClick={() => toggleSection('country')}>
-            Country
-            <span style={{ transform: `rotate(${openSections['country'] ? 180 : 0}deg)`, transition: 'transform 0.3s ease' }}>▼</span>
-          </MenuTitle>
-          <MenuItems isOpen={openSections['country']}>
-            {options.countries.map(country => (
-              <MenuItem 
-                key={country}
-                active={filters.country === country}
-                onClick={() => updateFilters('country', filters.country === country ? null : country)}
-              >
-                {country}
-              </MenuItem>
-            ))}
-          </MenuItems>
-        </MenuSection>
-        <MenuSection>
-          <MenuTitle onClick={() => toggleSection('language')}>
-            Language
-            <span style={{ transform: `rotate(${openSections['language'] ? 180 : 0}deg)`, transition: 'transform 0.3s ease' }}>▼</span>
-          </MenuTitle>
-          <MenuItems isOpen={openSections['language']}>
-            {options.languages.map(language => (
-              <MenuItem 
-                key={language}
-                active={filters.language === language}
-                onClick={() => updateFilters('language', filters.language === language ? null : language)}
-              >
-                {language}
-              </MenuItem>
-            ))}
-          </MenuItems>
-        </MenuSection>
-        <MenuSection>
-          <MenuTitle onClick={() => toggleSection('saved')}>
-            Saved Songs
-            <span style={{ transform: `rotate(${openSections['saved'] ? 180 : 0}deg)`, transition: 'transform 0.3s ease' }}>▼</span>
-          </MenuTitle>
-          <MenuItems isOpen={openSections['saved']}>
-            {savedSongs.length > 0 ? (
-              savedSongs.map(song => (
-                <MenuItem 
-                  key={song.id}
-                  onClick={() => setCurrentSong(song)}
+              ))}
+            </MenuItems>
+          </MenuSection>
+
+          <MenuSection>
+            <MenuTitle onClick={() => toggleSection('subgenre')}>
+              Subgenre
+              <span style={{ transform: `rotate(${openSections['subgenre'] ? 180 : 0}deg)`, transition: 'transform 0.3s ease' }}>▼</span>
+            </MenuTitle>
+            <MenuItems isOpen={openSections['subgenre']}>
+              {Object.keys(options.subgenres).map(genre => (
+                <MenuSection key={genre}>
+                  <MenuTitle>{genre}</MenuTitle>
+                  {options.subgenres[genre].map(subgenre => (
+                    <MenuItem
+                      key={subgenre}
+                      active={filters.subgenre.includes(subgenre)}
+                      onClick={() => handleFilterChange('subgenre', subgenre)}
+                    >
+                      {subgenre}
+                    </MenuItem>
+                  ))}
+                </MenuSection>
+              ))}
+            </MenuItems>
+          </MenuSection>
+
+          <MenuSection>
+            <MenuTitle onClick={() => toggleSection('language')}>
+              Language
+              <span style={{ transform: `rotate(${openSections['language'] ? 180 : 0}deg)`, transition: 'transform 0.3s ease' }}>▼</span>
+            </MenuTitle>
+            <MenuItems isOpen={openSections['language']}>
+              {options.languages.map(language => (
+                <MenuItem
+                  key={language}
+                  active={filters.language.includes(language)}
+                  onClick={() => handleFilterChange('language', language)}
                 >
-                  {song.title}
-                  <span style={{ fontSize: '0.8em' }}>{song.artist}</span>
+                  {language}
                 </MenuItem>
-              ))
-            ) : (
-              <MenuItem>No saved songs</MenuItem>
-            )}
-          </MenuItems>
-        </MenuSection>
-      </ScrollableSection>
+              ))}
+            </MenuItems>
+          </MenuSection>
+        </ScrollableSection>
+      </FilterSection>
     </SidebarContainer>
   );
 };
