@@ -1,10 +1,8 @@
-# Music Explorer Web Application
+# Music Explorer
 
-A modern web app for discovering and exploring music from a curated database.
+A React-based web application for exploring and discovering music through YouTube videos. Built with Vite, TypeScript, and Supabase.
 
 ## Features
-- Dark-blue/purple theme with white text
-- Explore random songs, filter by decade, genre, country, language
 - YouTube playback (audio/video)
 - Lyrics, history, and theory fetch
 - Save/remove/share songs
