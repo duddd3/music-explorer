@@ -11,7 +11,7 @@ const PlayerContainer = styled.div`
 `;
 
 const SongInfo = styled.div`
-  color: ${(props) => props.theme.colors.text};
+  color: ${(props) => props.theme.text};
   text-align: center;
   margin-bottom: 1rem;
   max-width: 600px;
@@ -26,16 +26,17 @@ const Controls = styled.div`
   justify-content: center;
 `;
 
-const Button = styled.button<{ active?: boolean }>`
-  background: ${(props) => props.active ? props.theme.colors.buttonActive : props.theme.colors.button};
-  color: ${(props) => props.theme.colors.text};
+const Button = styled.button<{ active?: boolean; minWidth?: string }>`
+  background: ${props => props.active ? props.theme.buttonActive : props.theme.button};
+  color: ${props => props.theme.text};
   border: none;
   border-radius: 6px;
   padding: 0.5rem 1.2rem;
   font-size: 1rem;
   cursor: pointer;
+  min-width: ${props => props.minWidth || 'auto'};
   &:hover {
-    background: ${(props) => props.theme.colors.accent};
+    background: ${props => props.theme.accent};
   }
 `;
 
@@ -64,16 +65,13 @@ interface PlayerProps {
   song: Song | null;
   setInfoTab: (tab: 'lyrics' | 'history' | 'theory') => void;
   onExplore: () => void;
-  onAutoplayChange: (enabled: boolean) => void;
 }
 
 export const Player: React.FC<PlayerProps> = ({ 
   song, 
   setInfoTab, 
-  onExplore,
-  onAutoplayChange 
+  onExplore
 }) => {
-  const [autoplay, setAutoplay] = useState(false);
   const [saved, setSaved] = useState(false);
 
   // Load saved state from localStorage
@@ -108,11 +106,7 @@ export const Player: React.FC<PlayerProps> = ({
       .catch(() => alert('Failed to copy link'));
   }, [song]);
 
-  const handleAutoplayToggle = useCallback(() => {
-    const newState = !autoplay;
-    setAutoplay(newState);
-    onAutoplayChange(newState);
-  }, [autoplay, onAutoplayChange]);
+
 
   return (
     <PlayerContainer>
@@ -133,14 +127,9 @@ export const Player: React.FC<PlayerProps> = ({
       <Controls>
         <Button onClick={onExplore}>Explore</Button>
         <Button 
-          active={autoplay} 
-          onClick={handleAutoplayToggle}
-        >
-          {autoplay ? 'Autoplay On' : 'Autoplay Off'}
-        </Button>
-        <Button 
           active={saved} 
           onClick={handleSave}
+          minWidth="100px"
         >
           {saved ? 'Remove' : 'Save'}
         </Button>

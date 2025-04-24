@@ -6,22 +6,21 @@ import { InfoArea } from './components/InfoArea';
 import { supabase } from './supabaseClient';
 
 const theme = {
-  colors: {
-    background: '#181A2A',
-    surface: '#23254A',
-    accent: '#7C3AED',
-    text: '#FFFFFF',
-    textSecondary: '#A3A3C2',
-    button: '#3B3E66',
-    buttonActive: '#7C3AED',
-    border: '#313265',
-  },
+  background: '#181A2A',
+  surface: '#23254A',
+  primary: '#7C3AED',
+  accent: '#7C3AED',
+  text: '#FFFFFF',
+  textSecondary: '#A3A3C2',
+  button: '#3B3E66',
+  buttonActive: '#7C3AED',
+  border: '#313265',
 };
 
 const GlobalStyle = createGlobalStyle`
   body {
-    background: ${(props: any) => props.theme.colors.background};
-    color: ${(props: any) => props.theme.colors.text};
+    background: ${props => props.theme.background};
+    color: ${props => props.theme.text};
     font-family: 'Inter', sans-serif;
     margin: 0;
     padding: 0;
@@ -37,12 +36,12 @@ const MainContent = styled.main`
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: ${(props) => props.theme.colors.surface};
+  background: ${props => props.theme.surface};
   padding: 0 2rem;
   overflow: auto;
 `;
 
-export const App: React.FC = () => {
+const App: React.FC = () => {
   interface Song {
     id: number;
     title: string;
@@ -55,20 +54,37 @@ export const App: React.FC = () => {
     youtube_link: string;
   }
 
-  const [songs, setSongs] = useState<Song[]>([]);
+  interface Filters {
+    search: string;
+    decade: string | null;
+    genre: string | null;
+    subgenre: string | null;
+    country: string | null;
+    language: string | null;
+  }
+
+  const [allSongs, setAllSongs] = useState<Song[]>([]);
+  const [filteredSongs, setFilteredSongs] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [infoTab, setInfoTab] = useState<'lyrics' | 'history' | 'theory'>('lyrics');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [autoplay, setAutoplay] = useState(false);
 
+  const [filters, setFilters] = useState<Filters>({
+    search: '',
+    decade: null,
+    genre: null,
+    subgenre: null,
+    country: null,
+    language: null
+  });
+
+  // Fetch all songs
   useEffect(() => {
     const fetchSongs = async () => {
       setLoading(true);
       setError(null);
       try {
-        // First check if we can access the table
-        console.log('Checking table access...');
         const { data, error } = await supabase
           .from('songs')
           .select(`
@@ -83,8 +99,6 @@ export const App: React.FC = () => {
             youtube_link
           `);
 
-        console.log('Response:', { data, error });
-
         if (error) {
           console.error('Supabase error:', error);
           if (error.message.includes('permission denied')) {
@@ -92,10 +106,11 @@ export const App: React.FC = () => {
           } else {
             setError(error.message);
           }
-          setSongs([]);
+          setAllSongs([]);
+          setFilteredSongs([]);
         } else {
-          console.log('Songs fetched successfully:', data);
-          setSongs(data || []);
+          setAllSongs(data || []);
+          setFilteredSongs(data || []);
           // Set initial random song
           if (data && data.length > 0) {
             setCurrentSong(data[Math.floor(Math.random() * data.length)]);
@@ -111,68 +126,130 @@ export const App: React.FC = () => {
     fetchSongs();
   }, []);
 
-  // Handle autoplay - move to next song when current song ends
+  // Apply filters
   useEffect(() => {
-    if (autoplay && songs.length > 0) {
-      const timer = setTimeout(() => {
-        const currentIndex = currentSong ? songs.findIndex(s => s.id === currentSong.id) : -1;
-        const nextIndex = currentIndex === songs.length - 1 ? 0 : currentIndex + 1;
-        setCurrentSong(songs[nextIndex]);
-      }, 5 * 60 * 1000); // Change song every 5 minutes
+    let result = [...allSongs];
 
-      return () => clearTimeout(timer);
+    // Apply search filter
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      result = result.filter(song =>
+        song.title.toLowerCase().includes(searchLower) ||
+        song.artist.toLowerCase().includes(searchLower)
+      );
     }
-  }, [autoplay, currentSong, songs]);
+
+    // Apply decade filter
+    if (filters.decade) {
+      const decade = parseInt(filters.decade);
+      result = result.filter(song =>
+        Math.floor(song.year / 10) * 10 === decade
+      );
+    }
+
+    // Apply genre filter
+    if (filters.genre) {
+      result = result.filter(song => song.genre === filters.genre);
+    }
+
+    // Apply subgenre filter
+    if (filters.subgenre) {
+      result = result.filter(song => song.subgenre === filters.subgenre);
+    }
+
+    // Apply country filter
+    if (filters.country) {
+      result = result.filter(song => song.country === filters.country);
+    }
+
+    // Apply language filter
+    if (filters.language) {
+      result = result.filter(song => song.language === filters.language);
+    }
+
+    setFilteredSongs(result);
+  }, [filters, allSongs]);
+
+
 
   const handleExplore = useCallback(() => {
-    if (songs.length > 0) {
+    if (filteredSongs.length > 0) {
       let newSong;
       do {
-        newSong = songs[Math.floor(Math.random() * songs.length)];
-      } while (newSong.id === currentSong?.id && songs.length > 1);
+        newSong = filteredSongs[Math.floor(Math.random() * filteredSongs.length)];
+      } while (newSong.id === currentSong?.id && filteredSongs.length > 1);
       setCurrentSong(newSong);
     }
-  }, [songs, currentSong]);
+  }, [filteredSongs, currentSong]);
 
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyle />
       <Layout>
-        <Sidebar setCurrentSong={setCurrentSong} />
+        <Sidebar 
+          setCurrentSong={setCurrentSong} 
+          onFiltersChange={setFilters} 
+        />
         <MainContent>
           <Player 
-        song={currentSong} 
-        setInfoTab={setInfoTab}
-        onExplore={handleExplore}
-        onAutoplayChange={setAutoplay}
-      />
+            song={currentSong} 
+            setInfoTab={setInfoTab}
+            onExplore={handleExplore}
+
+          />
           <InfoArea song={currentSong} tab={infoTab} />
           <div style={{marginTop: '2rem'}}>
-            <h2>All Songs in Database</h2>
-            {loading && <div>Loading songs...</div>}
-            {error && <div style={{color: 'red'}}>Error: {error}</div>}
-            {!loading && !error && songs.length === 0 && <div>No songs found.</div>}
-            {!loading && !error && songs.length > 0 && (
-              <ul style={{listStyle: 'none', padding: 0}}>
-                {songs.map(song => (
-                  <li key={song.id} style={{marginBottom: '1rem', background: '#23254A', borderRadius: 8, padding: '1rem'}}>
-                    <div><strong>Title:</strong> {song.title}</div>
-                    <div><strong>Artist:</strong> {song.artist}</div>
-                    <div><strong>Year:</strong> {song.year}</div>
-                    <div><strong>Genre:</strong> {song.genre}</div>
-                    <div><strong>Subgenre:</strong> {song.subgenre}</div>
-                    <div><strong>Country:</strong> {song.country}</div>
-                    <div><strong>Language:</strong> {song.language}</div>
-                    <div><strong>YouTube Link:</strong> {song.youtube_link}</div>
-                  </li>
+            <h2>Songs ({filteredSongs.length})</h2>
+            {loading ? (
+              <div>Loading songs...</div>
+            ) : error ? (
+              <div style={{color: 'red'}}>{error}</div>
+            ) : (
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+                gap: '1rem',
+                padding: '1rem'
+              }}>
+                {filteredSongs.map(song => (
+                  <div 
+                    key={song.id} 
+                    onClick={() => setCurrentSong(song)}
+                    style={{
+                      cursor: 'pointer',
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      background: theme.surface,
+                      border: `1px solid ${theme.border}`,
+                      transition: 'all 0.2s ease-in-out',
+                      transform: 'translateY(0)',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      }
+                    } as React.CSSProperties}
+                  >
+                    <div style={{ fontWeight: 'bold' }}>{song.title}</div>
+                    <div style={{ color: theme.textSecondary }}>
+                      {song.artist} • {song.year}
+                    </div>
+                    <div style={{ 
+                      fontSize: '0.8em',
+                      color: theme.textSecondary,
+                      marginTop: '0.5rem'
+                    }}>
+                      {song.genre} • {song.country}
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         </MainContent>
       </Layout>
     </ThemeProvider>
   );
-};
+}
+;
 
 export default App;

@@ -2,8 +2,8 @@ import React from 'react';
 import styled from 'styled-components';
 
 const InfoContainer = styled.div`
-  background: ${(props) => props.theme.colors.background};
-  color: ${(props) => props.theme.colors.text};
+  background: ${props => props.theme.background};
+  color: ${props => props.theme.text};
   border-radius: 8px;
   padding: 1.5rem;
   margin-top: 1rem;
