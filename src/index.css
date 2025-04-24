@@ -1,0 +1,22 @@
+/* Music Explorer global styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  background: #181A2A;
+  color: #FFFFFF;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  background: #23254A;
+}
+::-webkit-scrollbar-thumb {
+  background: #3B3E66;
+  border-radius: 4px;
+}
